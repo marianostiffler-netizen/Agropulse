@@ -8,6 +8,7 @@ function buildPlainText(r) {
   const now = new Date().toLocaleString('es-AR');
   lines.push('AGROPULSE — Reporte de monitoreo');
   lines.push(`Generado: ${now}`);
+  lines.push(`Modo: ${r.reportMode || 'estandar'}`);
   lines.push('');
   lines.push('== Geometría ==');
   if (r.geometry?.type === 'Polygon') {
@@ -17,25 +18,22 @@ function buildPlainText(r) {
     lines.push('Tipo: Punto con buffer');
     if (r.geometry?.bufferMeters != null) lines.push(`Radio: ${r.geometry.bufferMeters} m`);
   }
-  if (r.geometry?.center) {
-    lines.push(`Centro: ${r.geometry.center.lat.toFixed(6)}, ${r.geometry.center.lon.toFixed(6)}`);
-  }
+  if (r.geometry?.center) lines.push(`Centro: ${r.geometry.center.lat.toFixed(6)}, ${r.geometry.center.lon.toFixed(6)}`);
   lines.push('');
   lines.push('== Estado ==');
   lines.push(`Clasificación: ${r.statusLabel || r.status}`);
   lines.push(`Cobertura: ${r.landCover}`);
-  if (r.phenology) lines.push(`Etapa fenológica: ${r.phenology.label} (tendencia ${r.phenology.trend || '—'})`);
+  if (r.phenology) lines.push(`Etapa fenológica: ${r.phenology.label} (${r.phenology.trend || '—'})`);
   if (r.ranking?.percentile != null) lines.push(`Ranking: P${r.ranking.percentile} (${r.ranking.label})`);
   if (r.benchmark?.delta != null) lines.push(`Benchmark zonal 10km: ${r.benchmark.delta > 0 ? '+' : ''}${r.benchmark.delta.toFixed(1)}%`);
+  if (r.yoy?.delta != null) lines.push(`Interanual vs ${r.yoy.year}: ${r.yoy.delta > 0 ? '+' : ''}${r.yoy.delta.toFixed(1)}%`);
   if (r.stressDays?.days != null) lines.push(`Días de estrés hídrico: ${r.stressDays.days}`);
   lines.push('');
   lines.push('== Índices (Actual / Histórico / Anomalía) ==');
-  const row = (name, c, h, a) =>
-    `  ${name.padEnd(6)}  ${c == null ? '—' : c.toFixed(3)}   ${h == null ? '—' : h.toFixed(3)}   ${
-      a == null ? '—' : (a > 0 ? '+' : '') + a.toFixed(1) + '%'
-    }`;
+  const row = (n, c, h, a) =>
+    `  ${n.padEnd(6)}  ${c == null ? '—' : c.toFixed(3)}   ${h == null ? '—' : h.toFixed(3)}   ${a == null ? '—' : (a > 0 ? '+' : '') + a.toFixed(1) + '%'}`;
   lines.push(row('NDVI', r.current?.ndvi, r.historical?.ndvi, r.anomalies?.ndvi));
-  lines.push(row('EVI', r.current?.evi, r.historical?.evi, r.anomalies?.evi));
+  lines.push(row('EVI',  r.current?.evi,  r.historical?.evi,  r.anomalies?.evi));
   lines.push(row('NDWI', r.current?.ndwi, r.historical?.ndwi, r.anomalies?.ndwi));
   lines.push('');
   lines.push('== Síntesis ejecutiva ==');
@@ -49,13 +47,6 @@ function buildPlainText(r) {
     });
     lines.push('');
   }
-  if (r.timeSeries?.length) {
-    lines.push('== Serie temporal (12 meses) ==');
-    r.timeSeries.forEach((p) => {
-      lines.push(`  ${p.date}   NDVI=${p.ndvi == null ? '—' : p.ndvi.toFixed(3)}   EVI=${p.evi == null ? '—' : p.evi.toFixed(3)}`);
-    });
-  }
-  lines.push('');
   lines.push('Fuente: Copernicus Sentinel-2 · Procesamiento: Google Earth Engine.');
   return lines.join('\n');
 }
@@ -64,15 +55,29 @@ function downloadBlob(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-export default function ExportReport({ result }) {
+async function urlToDataUrl(url) {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onloadend = () => resolve(fr.result);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.warn('No se pudo descargar el thumbnail', e);
+    return null;
+  }
+}
+
+export default function ExportReport({ result, inputGeometry }) {
   const [busy, setBusy] = useState(false);
   const [hash, setHash] = useState(null);
   if (!result) return null;
@@ -87,8 +92,19 @@ export default function ExportReport({ result }) {
   const handlePDF = async () => {
     try {
       setBusy(true);
+      // Pre-fetch de thumbnails a dataURL para embeberlos en el PDF
+      const thumbs = result.thumbnails || {};
+      const [ndviThumbDataUrl, rgbThumbDataUrl] = await Promise.all([
+        thumbs.ndviUrl ? urlToDataUrl(thumbs.ndviUrl) : null,
+        thumbs.rgbUrl ? urlToDataUrl(thumbs.rgbUrl) : null,
+      ]);
       const { generatePDFReport } = await import('@/lib/pdfReport');
-      const { hashHex } = await generatePDFReport(result);
+      const { hashHex } = await generatePDFReport(result, {
+        ndviThumbDataUrl,
+        rgbThumbDataUrl,
+        thumbBbox: thumbs.bbox,
+        inputGeometry, // para overlay vectorial del polígono con precisión exacta
+      });
       setHash(hashHex);
     } catch (err) {
       console.error(err);
@@ -122,7 +138,7 @@ export default function ExportReport({ result }) {
           <div className="font-semibold uppercase tracking-wider text-ink-300">
             Sello emitido · SHA-256
           </div>
-          <div className="num mt-1 break-all text-[10px] text-ink-400">{hash}</div>
+          <div className="num mt-1 break-all">{hash}</div>
         </div>
       )}
     </div>

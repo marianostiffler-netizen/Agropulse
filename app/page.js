@@ -292,7 +292,14 @@ export default function HomePage() {
                 <h3 className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">
                   Reporte
                 </h3>
-                <ExportReport result={result} />
+                <ExportReport
+                  result={result}
+                  inputGeometry={
+                    mode === 'polygon' && polygonFinal
+                      ? { type: 'Polygon', coordinatesLonLat: polygonFinal }
+                      : null
+                  }
+                />
               </section>
             )}
           </div>

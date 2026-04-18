@@ -155,6 +155,69 @@ function StressDaysCard({ stress }) {
   );
 }
 
+function YoYCard({ yoy, current }) {
+  if (!yoy) return null;
+  const delta = yoy.delta;
+  const tone = anomalyTone(delta);
+  return (
+    <div className="rounded-xl border border-ink-650 bg-ink-800 p-5 shadow-card">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-ink-400">
+          Comparativo interanual
+        </span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-md border border-ink-650 bg-ink-850 text-ink-300">
+          <IconTrend className="h-4 w-4" />
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-ink-500">Actual</div>
+          <div className="num mt-0.5 text-lg font-semibold text-ink-100">{fmt(current, 2)}</div>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-ink-500">{yoy.year}</div>
+          <div className="num mt-0.5 text-lg font-semibold text-ink-300">{fmt(yoy.ndvi, 2)}</div>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-ink-500">Diferencia</div>
+          <div className={`num mt-0.5 text-lg font-semibold ${tone}`}>{fmtPct(delta)}</div>
+        </div>
+      </div>
+      <div className="mt-3 text-[11px] leading-relaxed text-ink-400">
+        NDVI del lote vs. mismo mes del año anterior.
+      </div>
+    </div>
+  );
+}
+
+const REPORT_MODE = {
+  alerta_roja: {
+    label: 'Alerta Roja',
+    tone: 'bg-red-500/15 text-red-300 border-red-500/40',
+    description: 'Anomalía NDVI ≤ −25 %. Tono de urgencia activado.',
+  },
+  pre_cosecha: {
+    label: 'Pre-cosecha',
+    tone: 'bg-amber-500/15 text-amber-300 border-amber-500/40',
+    description: 'Senescencia detectada. Priorización de logística y humedad de grano.',
+  },
+  estandar: {
+    label: 'Monitoreo estándar',
+    tone: 'bg-accent-500/10 text-accent-300 border-accent-500/30',
+    description: 'Seguimiento de rutina con tono sobrio.',
+  },
+};
+
+function ReportModeBadge({ mode }) {
+  const m = REPORT_MODE[mode] || REPORT_MODE.estandar;
+  return (
+    <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold ${m.tone}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      Modo: {m.label}
+    </div>
+  );
+}
+
 function BenchmarkCard({ benchmark, current }) {
   if (!benchmark) return null;
   const delta = benchmark.delta;
@@ -229,15 +292,23 @@ function OperationalWindows({ windows }) {
   );
 }
 
-function StorytellingCard({ storytelling }) {
+function StorytellingCard({ storytelling, reportMode }) {
   if (!storytelling) return null;
+  const accent = reportMode === 'alerta_roja'
+    ? 'border-red-500/30 from-red-500/10 to-ink-850'
+    : reportMode === 'pre_cosecha'
+      ? 'border-amber-500/30 from-amber-500/10 to-ink-850'
+      : 'border-accent-500/20 from-ink-800 to-ink-850';
   return (
-    <div className="rounded-xl border border-accent-500/20 bg-gradient-to-br from-ink-800 to-ink-850 p-5 shadow-card">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="flex h-6 w-6 items-center justify-center rounded-md border border-accent-500/30 bg-accent-500/10 text-accent-400">
-          <IconInfo className="h-3.5 w-3.5" />
-        </span>
-        <h3 className="text-sm font-semibold text-ink-100">Síntesis ejecutiva</h3>
+    <div className={`rounded-xl border bg-gradient-to-br p-5 shadow-card ${accent}`}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md border border-accent-500/30 bg-accent-500/10 text-accent-400">
+            <IconInfo className="h-3.5 w-3.5" />
+          </span>
+          <h3 className="text-sm font-semibold text-ink-100">Síntesis ejecutiva</h3>
+        </div>
+        <ReportModeBadge mode={reportMode} />
       </div>
       <p className="text-sm leading-relaxed text-ink-200">{storytelling}</p>
     </div>
@@ -262,7 +333,7 @@ export default function DroughtResult({ result }) {
       </div>
 
       {/* Storytelling ejecutivo */}
-      <StorytellingCard storytelling={result.storytelling} />
+      <StorytellingCard storytelling={result.storytelling} reportMode={result.reportMode} />
 
       {/* Grilla KPI */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -293,11 +364,12 @@ export default function DroughtResult({ result }) {
         />
       </div>
 
-      {/* Ranking + Estrés + Benchmark */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      {/* Ranking + Estrés + Benchmark + YoY */}
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <RankingCard ranking={result.ranking} />
         <StressDaysCard stress={result.stressDays} />
         <BenchmarkCard benchmark={result.benchmark} current={result.current?.ndvi} />
+        <YoYCard yoy={result.yoy} current={result.current?.ndvi} />
       </div>
 
       {/* Ventanas de trabajo */}
