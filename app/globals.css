@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'leaflet/dist/leaflet.css';
+
+html, body {
+  height: 100%;
+}
+
+body {
+  @apply bg-ink-900 text-ink-100 antialiased;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #111827; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 8px; border: 2px solid #111827; }
+::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+
+/* ---------- Form controls ---------- */
+input[type='number'],
+input[type='text'] {
+  @apply bg-ink-850 border border-ink-650 text-ink-100 placeholder:text-ink-500;
+}
+input:focus { @apply border-accent-500 outline-none ring-1 ring-accent-500/50; }
+
+/* ---------- Leaflet dark integration ---------- */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #0B101B;
+  font-family: inherit;
+}
+
+.leaflet-control-zoom a,
+.leaflet-bar a {
+  background: #1F2937 !important;
+  color: #F3F4F6 !important;
+  border-color: #374151 !important;
+}
+.leaflet-bar a:hover { background: #2D3545 !important; }
+.leaflet-bar { border: 1px solid #374151 !important; box-shadow: 0 4px 12px rgba(0,0,0,0.45) !important; }
+
+.leaflet-control-layers {
+  background: #1F2937 !important;
+  color: #F3F4F6 !important;
+  border: 1px solid #374151 !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.45) !important;
+}
+.leaflet-control-layers-toggle { filter: invert(0.9) brightness(1.2); }
+.leaflet-control-layers-expanded { padding: 10px 12px !important; font-size: 12px; }
+.leaflet-control-layers-separator { border-top-color: #374151 !important; }
+
+.leaflet-control-attribution {
+  background: rgba(17, 24, 39, 0.75) !important;
+  color: #9CA3AF !important;
+  backdrop-filter: blur(6px);
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a { color: #D1D5DB !important; }
+
+/* Tile rendering on dark background while loading */
+.leaflet-tile-container img { image-rendering: auto; }
+
+/* ---------- Legend ---------- */
+.legend {
+  @apply absolute bottom-4 left-4 z-[400] rounded-lg border border-ink-650 bg-ink-800/90 px-3 py-2 text-[11px] text-ink-300 shadow-card backdrop-blur;
+}
+.legend-gradient {
+  height: 8px;
+  width: 200px;
+  background: linear-gradient(to right,
+    #7f1d1d, #b91c1c, #ea580c, #f59e0b, #eab308, #a3e635, #22c55e, #059669, #065f46);
+  border-radius: 9999px;
+}
+
+/* ---------- Map wrapper ---------- */
+.map-shell {
+  background: #0B101B;
+  border: 1px solid #1F2937;
+}
+
+/* ---------- Utility classes ---------- */
+.num { font-variant-numeric: tabular-nums; font-family: theme('fontFamily.mono'); }

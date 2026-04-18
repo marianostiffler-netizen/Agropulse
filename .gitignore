@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vercel
+
+# Service Account keys de Google Cloud / Earth Engine
+*.json.key
+agropulse-*.json
+service-account*.json
+gcp-*.json
